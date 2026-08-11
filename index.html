@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>بوابة استخراج كود الطالب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --navy-950:#0d1826;
+    --navy-900:#122238;
+    --navy-800:#1c3352;
+    --navy-700:#2a4570;
+    --papyrus:#e9dfc6;
+    --papyrus-dim:#d8ccac;
+    --ink:#20180f;
+    --gold:#c79a3f;
+    --gold-bright:#e8bd5c;
+    --burgundy:#7d2632;
+    --burgundy-dark:#5c1b24;
+    --mist:#8fa3bd;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(ellipse at 50% -10%, var(--navy-800) 0%, var(--navy-950) 55%),
+      var(--navy-950);
+    font-family:'Tajawal', sans-serif;
+    color:var(--mist);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:32px 16px;
+    position:relative;
+    overflow-x:hidden;
+  }
+
+  /* faint dotted texture, like a security-print backdrop */
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    background-image:radial-gradient(var(--navy-700) 1px, transparent 1px);
+    background-size:26px 26px;
+    opacity:0.16;
+    pointer-events:none;
+  }
+
+  .stage{
+    width:100%;
+    max-width:480px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:28px;
+  }
+
+  .letterhead{
+    text-align:center;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.14em;
+    color:var(--gold);
+    text-transform:uppercase;
+    margin:0 0 10px;
+  }
+  .letterhead h1{
+    font-family:'Amiri', serif;
+    font-weight:700;
+    font-size:clamp(28px, 6vw, 38px);
+    color:#f2ead4;
+    margin:0 0 8px;
+    line-height:1.25;
+  }
+  .letterhead p{
+    margin:0;
+    font-size:14.5px;
+    color:var(--mist);
+    line-height:1.7;
+  }
+
+  .search-panel{
+    width:100%;
+    background:linear-gradient(180deg, var(--navy-800), var(--navy-900));
+    border:1px solid rgba(232,189,92,0.18);
+    border-radius:16px;
+    padding:22px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    box-shadow:0 20px 50px -20px rgba(0,0,0,0.6);
+  }
+
+  .field-label{
+    font-size:13px;
+    color:var(--gold-bright);
+    font-weight:700;
+  }
+
+  .search-row{
+    display:flex;
+    gap:10px;
+  }
+
+  input#idInput{
+    flex:1;
+    min-width:0;
+    background:var(--navy-950);
+    border:1px solid var(--navy-700);
+    color:#f2ead4;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:19px;
+    letter-spacing:.04em;
+    padding:14px 16px;
+    border-radius:10px;
+    outline:none;
+    transition:border-color .15s ease, box-shadow .15s ease;
+    direction:ltr;
+    text-align:center;
+  }
+  input#idInput::placeholder{
+    color:#4d6280;
+    font-family:'Tajawal', sans-serif;
+    font-size:14px;
+    letter-spacing:normal;
+  }
+  input#idInput:focus{
+    border-color:var(--gold);
+    box-shadow:0 0 0 3px rgba(199,154,63,0.25);
+  }
+
+  button#searchBtn{
+    flex-shrink:0;
+    background:var(--gold);
+    color:var(--navy-950);
+    border:none;
+    font-family:'Tajawal', sans-serif;
+    font-weight:900;
+    font-size:15px;
+    padding:0 22px;
+    border-radius:10px;
+    cursor:pointer;
+    transition:background .15s ease, transform .1s ease;
+  }
+  button#searchBtn:hover{background:var(--gold-bright);}
+  button#searchBtn:active{transform:scale(0.97);}
+  button#searchBtn:focus-visible{outline:3px solid var(--gold-bright); outline-offset:2px;}
+
+  .hint{
+    font-size:12.5px;
+    color:#5c7191;
+    text-align:center;
+  }
+
+  /* ---- result states ---- */
+  .result-wrap{
+    width:100%;
+    min-height:2px;
+  }
+
+  .empty-msg{
+    text-align:center;
+    color:var(--burgundy);
+    background:rgba(125,38,50,0.12);
+    border:1px solid rgba(125,38,50,0.4);
+    border-radius:12px;
+    padding:16px;
+    font-weight:700;
+    font-size:14.5px;
+    display:none;
+  }
+  .empty-msg.show{display:block;}
+
+  /* ---- the ticket ---- */
+  .ticket{
+    position:relative;
+    width:100%;
+    background:
+      repeating-linear-gradient(135deg, rgba(0,0,0,0.02) 0px, rgba(0,0,0,0.02) 2px, transparent 2px, transparent 6px),
+      var(--papyrus);
+    border-radius:14px;
+    padding:26px 24px 22px;
+    display:none;
+    transform:translateY(14px) scale(0.98);
+    opacity:0;
+    box-shadow:0 24px 60px -18px rgba(0,0,0,0.65);
+  }
+  .ticket.show{
+    display:block;
+    animation:riseIn .5s cubic-bezier(.2,.8,.25,1) forwards;
+  }
+  @keyframes riseIn{
+    to{transform:translateY(0) scale(1); opacity:1;}
+  }
+
+  .ticket::before, .ticket::after{
+    content:"";
+    position:absolute;
+    width:26px;
+    height:26px;
+    border-radius:50%;
+    background:var(--navy-950);
+    top:50%;
+    transform:translateY(-50%);
+  }
+  .ticket::before{right:-13px;}
+  .ticket::after{left:-13px;}
+
+  .ticket-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    border-bottom:1.5px dashed var(--papyrus-dim);
+    padding-bottom:16px;
+    margin-bottom:18px;
+  }
+  .ticket-eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    letter-spacing:.12em;
+    color:#8a7a54;
+    text-transform:uppercase;
+    margin:0 0 6px;
+  }
+  .ticket-name{
+    font-family:'Amiri', serif;
+    font-weight:700;
+    font-size:21px;
+    color:var(--ink);
+    margin:0;
+    line-height:1.5;
+  }
+  .ticket-name.no-name{
+    font-family:'Tajawal', sans-serif;
+    font-size:14px;
+    color:#8a7a54;
+    font-weight:500;
+  }
+  .ticket-code{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:15px;
+    font-weight:600;
+    color:var(--burgundy);
+    direction:ltr;
+    white-space:nowrap;
+    margin-right: 2px;
+  }
+
+  .ticket-body{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:20px;
+    position:relative;
+  }
+
+  .qr-frame{
+    background:#fff;
+    padding:10px;
+    border-radius:8px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.15);
+    flex-shrink:0;
+  }
+  .qr-frame #qrcode{line-height:0;}
+
+  .stamp{
+    position:absolute;
+    left:8px;
+    bottom:-6px;
+    width:92px;
+    height:92px;
+    border:3px solid var(--burgundy);
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--burgundy);
+    transform:rotate(-18deg) scale(0);
+    opacity:0;
+    mix-blend-mode:multiply;
+    pointer-events:none;
+  }
+  .stamp.show{
+    animation:stampDown .45s .35s cubic-bezier(.34,1.56,.64,1) forwards;
+  }
+  @keyframes stampDown{
+    0%{transform:rotate(-18deg) scale(2.4); opacity:0;}
+    60%{opacity:.85;}
+    100%{transform:rotate(-18deg) scale(1); opacity:.85;}
+  }
+  .stamp::before{
+    content:"";
+    position:absolute;
+    inset:6px;
+    border:1px solid var(--burgundy);
+    border-radius:50%;
+  }
+  .stamp span{
+    font-family:'Amiri', serif;
+    font-weight:700;
+    font-size:13px;
+    text-align:center;
+    line-height:1.3;
+  }
+
+  .ticket-footer{
+    margin-top:18px;
+    padding-top:14px;
+    border-top:1.5px dashed var(--papyrus-dim);
+    display:flex;
+    justify-content:space-between;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    color:#8a7a54;
+    letter-spacing:.04em;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .ticket, .stamp{animation:none !important; transition:none !important;}
+    .ticket.show{opacity:1; transform:none;}
+    .stamp.show{opacity:.85; transform:rotate(-18deg) scale(1);}
+  }
+
+  @media (max-width:380px){
+    .ticket-body{flex-direction:column;}
+    .stamp{position:static; margin-top:10px; transform:rotate(-8deg) scale(0);}
+    .stamp.show{animation:stampDownMobile .45s .35s cubic-bezier(.34,1.56,.64,1) forwards;}
+    @keyframes stampDownMobile{
+      0%{transform:rotate(-8deg) scale(2); opacity:0;}
+      60%{opacity:.85;}
+      100%{transform:rotate(-8deg) scale(1); opacity:.85;}
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="letterhead">
+    <p class="eyebrow">STUDENT CODE LOOKUP</p>
+    <h1>بوابة استخراج كود الطالب</h1>
+    <h1>مستر محمد الصباغ</h2>
+    <p>اكتب رقم الكود الخاص بك في الخانة أدناه لعرض بطاقتك وكود QR الخاص بك</p>
+  </div>
+
+  <div class="search-panel">
+    <label class="field-label" for="idInput">رقم الكود</label>
+    <div class="search-row">
+      <input id="idInput" type="text" inputmode="numeric" placeholder="مثال: 3634487" autocomplete="off" maxlength="7">
+      <button id="searchBtn">بحث</button>
+    </div>
+    <p class="hint">٧ أرقام بالضبط، كما هو مكتوب في كشف الأسماء</p>
+  </div>
+
+  <div class="result-wrap">
+    <div class="empty-msg" id="emptyMsg">لا يوجد كود مطابق. تأكد من الأرقام وحاول مرة أخرى.</div>
+
+    <div class="ticket" id="ticket">
+      <div class="ticket-top">
+        <div>
+          <p class="ticket-eyebrow">اسم الطالب</p>
+          <p class="ticket-name" id="ticketName"></p>
+        </div>
+        <div class="ticket-code" id="ticketCode"></div>
+      </div>
+      <div class="ticket-body">
+        <div class="qr-frame"><div id="qrcode"></div></div>
+        <div class="stamp" id="stamp"><span>صالح<br>Valid</span></div>
+      </div>
+      <div class="ticket-footer">
+        <span id="footerCode"></span>
+        <span>ADMIT ONE</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STUDENTS = {"3634487": "سجده سامح محمد الصباغ", "3634507": "ندى سامح التعليمى عطا الله", "3634527": "هيا محمد احمد الحفناوي", "3634537": "شمس هشام سليمان مصلحي", "3634547": "ياسمين اسامه مليجي شمس الدين", "3634557": "ريم إبراهيم محمدي عماره", "3634567": "نوران سمير صابر", "3634587": "نورهان ابراهيم يحيى خاطر", "3634607": "مريم سعيد السيد رزق", "3634617": "محمد احمد سمير محمد ظريفه", "3634627": "عبدالرحمن محمد صالح الجزار", "3634637": "اروي إبراهيم علي حسين شلبي", "3634657": "مهند ياسر عبد المنعم الخولي", "3634667": "ملك مصطفي عبدالله", "3634697": "اسراء لطفي محمد ابو النصر", "3634707": "عمر مختار علي الاعرج", "3634727": "مصطفى ماهر عبدالعظيم السماحي", "3634767": "سلمي ياسر عبد الحكيم إبراهيم صقر", "3634787": "سهيله محمود السيد علام", "3634797": "كريم مصطفى السيد عوض", "3634847": "رحمه لطفي محمد الشقرفي", "3634857": "شهد السيد عبد الفتاح", "3634867": "حبيبة فتحى محمد نصار", "3634877": "مهاد محمد سعيد عفيفى", "3634887": "شهد عصام السيد عبدالمنعم", "3634917": "شروق مختار عبد السلام عامر", "3634927": "چني احمد الغنيمي الجزار", "3634937": "محمد بدري سعيد عبد العزيز", "3634957": "حبيبه وائل السعداوي الزغبي", "3634987": "بسمه تامر سعيد السيد", "3635007": "فرح على صلاح الدين الأعرج", "3635017": "زينب رضا محمد حسين", "3635027": "سجى مؤمن احمد محمد", "3635037": "شروق مصطفى احمد زين الدين", "3635057": "حبيبه محمد عبد الوهاب الاسكندراني", "3635067": "Rahma Tamer Abdullah Ahmed", "3635097": "ياسمين اشرف محمد طه", "3635107": "منه رضا احمد غانم", "3635127": "محمد احمد محمد متولي ابوالعز", "3635137": "نور محمد عيسوي محمد", "3635167": "سلمى مصطفى إبراهيم الباجوري", "3635197": "نور محمد رشاد سبيع", "3635207": "ضحى رفعت محمد البندارى", "3635227": "تسنيم حسام عبد الظاهر والي", "3635247": "رحمة الوصال عبدالهادي الوصال", "3635257": "ملك اسامه محمد خطاب", "3635267": "مريم عماد صبحي إبراهيم", "3635277": "ندي صبحي عزت الشاعر", "3635287": "نورا محمد مختار", "3635297": "سما احمد عبدالفتاح فتوح", "3635307": "ملك احمد سلامه عبد الستار", "3635317": "أريج إكرامي خليل السيد محمد حسانين", "3635347": "يوسف محمد عبد الهادي", "3635357": "Muhammad Ayman Muhammad El-Hadidy", "3635457": "روان جمال محمدالخرباوي", "3635467": "مهند نبيل عبدالهادي قرقش", "3635477": "مريمُ طارق السيد الوحش", "3635487": "ملك مصطفي  علي ناصف", "3635517": "انثى", "3635527": "چنى محمد على العمرى", "3635537": "محمد سعيد محمد محمد", "3635557": "جنى ناصر عبد الستار سالم حسين", "3635597": "منة سامي ابراهيم علوه", "3635607": "بسمله محمد صبحي بدر", "3635617": "ايمان احمد زيد", "3635627": "مي ماجد محمد المتولي", "3635637": "أمين عبد الرحمن أمين خليف", "3635647": "سـارة بـسيوني الـدسوقي عبـيد", "3635677": "روضة تامر لطفي سلطان", "3635687": "مي أيمن السيد فهمي عامر", "3635697": "منار وليد امام حشيش", "3635707": "خلود احمد محمد العزب", "3635727": "ريم شريف محمود خليل", "3635737": "ولاء عادل احمد الزناري", "3635747": "ملك عبدالرحمن أحمد رمضان", "3635757": "آلاء كرم أحمد الباجوري", "3635767": "رضوى أشرف عزت رمضان", "3635777": "شيماء احمد السيد خضير", "3635797": "روان خالد سالم أحمد", "3635807": "حبيبه حامد إبراهيم المكاوي", "3635817": "نور خالد عباس نصار", "3635837": "شروق محمد مصطفى عبده", "3635867": "رحمه السيد محمد البيومي", "3635897": "رؤيه محمود عبدالفتاح الشربيني", "3635907": "خالد وليد ابراهيم حرحش", "3635917": "محمد امجد مصطفى عبدالدايم", "3635957": "Ahmed wagh salem", "3635977": "مريم مصطفى السيد ريشه", "3635987": "اميره احمد محمد ابو رحمه", "3635997": "هاجر ياسر احمد الشرقاوى", "3636007": "حبيبه علام محمود احمد", "3636047": "ملك صلاح السيد الحبيشي", "3636077": "محمد أحمد عبدالمجيد إبراهيم عطية", "3636087": "مصطفى عبدالعزيز عبدالرحيم سلطان", "3636107": "احمد اشرف عطيه عماره", "3636157": "ملك مروان عبدالقادر راشد", "3636167": "حبيبه فتوح سعيد الشوني", "3636177": "عبد المجيد عبد الفتاح جبر", "3636187": "Romisaa Ahmed shafeek", "3636197": "تسنيم وليد عبدالعزيز فوده", "3636207": "رحمه عبد الفتاح راضي", "3636237": "فاطمة خالد ابوضيف نصار", "3636247": "عـُلا عادل عبد السلام عماره", "3636267": "عمر عادل عبد السميع الخولي", "3636277": "ملك احمد عبد الخالق غانم", "3636317": "هديل محمد صبري ابراهيم", "3636327": "يوسف محمد مرسي صابر", "3636337": "محمود عبد الغني رجب سليمان", "3636347": "حبيبة احمد ابراهيم", "3636377": "يارا هشام سليمان النشار", "3636397": "نور ابراهيم عبد المنتصر شبل", "3636407": "إسراء ربيع خليفة والي", "3636417": "احمد السيد محمد فؤاد", "3636447": "سلمى مسعد السيد النادي", "3636457": "Mona mamoun", "3636477": "فاطمه ربيع السيد سلامه", "3636487": "محمد وحيد محمد عبد الهادي", "3636497": "محمد هاني محمود الميموني", "3636537": "ساره أمير يوسف البنا", "3636547": "إبراهيم محمد إبراهيم ابوزيد ماضي", "3636567": "يوسف وجيه صبرى على الدروفى", "3636587": "إسراء السيد محمد حسن", "3636607": "نوران ابراهيم الصاوي", "3636617": "امال محمد كمال علام", "3636627": "بسملة محمد احمد عتربي", "3636637": "الكوثر وائل عبد الله", "3636647": "چودي صلاح فتحي محمد", "3636687": "شروق عماد عبد النبي احمد عرفه", "3636707": "جمال محمد دسوقي الدقن", "3636727": "محمد ابراهيم محمد", "3636747": "جني عماد محمد عامر", "3636757": "محمد طلعت ابراهيم الصلاغ", "3636777": "سلمى جمال مصطفى محمد", "3636787": "جني عبد الحليم محمد عطا", "3636797": "ساره ابراهيم جمال محمد", "3636817": "احمد محمد احمد علوه", "3636827": "جودي طارق سمير الرفاعي", "3636847": "ملك ياسر امام محمد إبراهيم", "3636867": "محمد ياسر سعد أبوالنجا", "3636887": "ملك محمود محمود رزق", "3636897": "علا أحمد سمير", "3636907": "إبراهيم عطا إبراهيم ربيعة", "3636917": "صبحي محمد احمد علوه", "3636927": "ساهر تامر شرف الدين", "3636937": "رضوه عمرو عبد السلام مصطفي", "3636947": "نور هشام منير ابوالروس", "3636957": "هنا هشام منير ابوالروس", "3636977": "سندس محمد سلامه السنافيري", "3636987": "منة الله رأفت شرف الدين", "3636997": "روان وليد شعبان الجزار", "3637007": "مريم ابراهيم احمد احمد", "3637027": "محمد اسماعيل احمد ابو العز", "3637037": "جني محمد خيري شبل", "3637047": "مروة حسام جلال البسيوني", "3637057": "مريم يوسف عبد الفتاح علي ابو النجا", "3637067": "حمدي ابراهيم حمدي موسي", "3637097": "رقيه وائل حامد محمد حضر", "3637117": "أحمد فؤاد عبدالهادي عبدالصادق", "3637157": "ملك تامر رزق الله محمد", "3637167": "حبيبه جمال عبدالعاطى جادالله", "3637177": "منه عبدالمنعم غانم الاعصر", "3637197": "ياسمين بلال ابراهيم يوسف", "3637207": "ياسمين محمد صلاح محمد حنفي", "3637227": "يوسف ايمن صلاح", "3637247": "نور رامي محمد الاكحل", "3637277": "ملك عبدالكريم سعيد عبدالمقصود", "3637287": "مريم هاني السيد عبده", "3637297": "إسلام محمد بدر", "3637307": "مريم رضا المحمدي عيسى", "3637317": "حنان محمد محمود قصرى", "3637337": "رحمه السيد محمد الغريب", "3637357": "ندا عمرو محمد شوقي الدقن", "3637367": "أدهم خالد فرحات عبد المقصود", "3637377": "سندس ابراهيم عبدالله محمد", "3637397": "شهد على طلعت", "3637417": "حبيبه عماد عبد الكريم الاعصر", "3637427": "بسمله نجيب فتحي الخولي", "3637457": "سماح ياسر فرج", "3637467": "حبيبه محمد سعيد باشا", "3637497": "Rahma Magdy Abdlhamed", "3637547": "اميره السيد السيد احمد", "3637567": "شروق عاطف محمد عبد الرحمن", "3637587": "حسناء محمد المنسي زيدان", "3637597": "شهد محمد عرفه الصباغ", "3637607": "ريم وائل شرف الدين", "3637617": "أمنيه محمد محمد عبدالرحمن", "3637627": "زياد السوداني", "3637647": "حنين محمد عبدالرازق ابوادريس", "3637677": "وليد محمد إبراهيم الغول", "3637687": "نوران اسعد مختار لاشين", "3637697": "فاطمه محمود محمود عطوه", "3637767": "Mai mohamed Abdlrhman", "3637777": "سجي طلعت محمد جاب الله", "3637787": "زياد رضا صادق محمد", "3637847": "كريم موسى محمد سنبل", "3637877": "ياسمين عبدالرازق علي هلال", "3637887": "آيه علي عبدالحميد فضل", "3637897": "نورين مصطفى كمال يونس", "3637907": "امل فوزى احمد داود", "3637927": "ياسمين طلعت محمد الحسيني", "3637937": "ندي حسن عبد العزيز الحفناوي", "3637947": "شهد محمد محمد على", "3637957": "معاذ احمد عبدالعال", "3637967": "عبدالقادر إبراهيم عبدالقادر جويلي", "3637987": "ابراهيم نبيل أبوالفتوح سالم", "3638017": "حنين هشام حمدى عطوة", "3638027": "منه محمد عبدالوهاب حرحش", "3638037": "يوسف حسن صبحي ابو المجد", "3638047": "امل رضا ابو ذكري", "3638057": "حنان ابراهيم عبدالمنعم رزق", "3638097": "ندي باسم محمد سند", "3638117": "بسنت هيثم سمير لاشين", "3638137": "Shahd Waleed Mostafa Eweda", "3638147": "Shaza Wael Mohamed Zaki", "3638207": "أميره يوسف ابراهيم سمري", "3638217": "اسيل يحيي عبد المجيد بدة", "3638237": "جني سمير عبد الستار عبد الفتاح جاد", "3638267": "تسابيح محمد السيد عيسى", "3638297": "جمال محمد الجوهري", "3638307": "بسنت باسم محمد", "3638327": "نيرة أحمد سامي أحمد", "3638367": "محمود طاهر عبد الظاهر", "3638377": "جني صفوت عبد المنعم الدهشان", "3638427": "عبدالرحمن أحمد محمد", "3638447": "Jana Mohammed Ibrahim", "3638487": "جومانا سامح فوزي منصور", "3638497": "فرح هيثم عبد المقصود البرماوي", "3638507": "احمد سعيد المغربي المغربي", "3638517": "سعيد ماهر عبدالفتاح ناصف", "3638567": "فتحي وجدي حمدي الفرارجي", "3638597": "شهد بكر مراد", "3638607": "بسنت أمين حامد عبدالعظيم", "3638617": "محمود اسامة عيد الصبور محمد", "3638627": "رقيه وائل حامد محمد خضر", "3638637": "أحمد ياسين عبد الفتاح شعله", "3638667": "روان محمد عبد الرازق البرماوي", "3638677": "جنى متولي السيد الحفناوي", "3638687": "نورهان عبدالرحمن محمد علي جزر", "3638697": "حنين محمد احمد عبدالله", "3638727": "عبدالله احمد", "3638767": "زينة باسم كمال فايد", "3638787": "محمود عبد الغني رجب سليمان", "3638827": "جنى محمد عبدالقادر حامد", "3638857": "مي باسم السيد علي", "3638867": "ملك شوقي يسري سلطان", "3638897": "زياد شعبان السيد العراقي", "3638917": "ردينة هاني محمد النعماني", "3638927": "Menna Hossam Fathi AlBasuoni", "3638947": "نور محمد مصطفى السنافيري", "3638957": "مريم سعيد محمد دحروج", "3638987": "شهد مسعد ناجي عرب", "3638997": "رحمه تامر محمد الشيخ", "3639067": "جنى ناصر عبد الستار سالم", "3639127": "شهد بكر مراد", "3639187": "احمد اشرف ابراهيم ابوهيبة", "3639217": "خلود محمد خالد المنشاوي", "3639237": "تقى ابراهيم السيد خاطر", "3639277": "رضوى نبيل مصطفى ابو عبية", "3639297": "ياسمين علاء عزت طاحون", "3639317": "بسمة أشرف فوزى نصار", "3639327": "معاذ خالد محمد زعير", "3639347": "حنين سعد مسعد مطاوع", "3639367": "حبيبة هانى صالح المغربي", "3639387": "نور عبدالحافظ حسنى", "3639427": "ملك هانى ناجى عبدالحليم", "3639447": "مريم ايمن عبد المقصود على", "3639457": "آيه إبراهيم محمد إبراهيم", "3639467": "رحمه شريف السيد حلمى", "3639507": "رحمه رفيق محمد ادريس", "3639517": "رفيدة عماد بدر", "3639577": "Malak Abdelfatah Ghareeb", "3639607": "صبحى محمد احمد علوه", "3639667": "جنا إيهاب محمد خليفه", "3639677": "عبد الرحمن عبد السلام دياب", "3639697": "عبدالرحمن السعيد حمدي يونس", "3639707": "اشرف اسامه سعدالله", "3639737": "ملك عبدالستار چودة زيدان", "3639747": "ملك عبد المنعم السيد المقدم", "3639777": "ندي مجدي عبد الحميد سلامه", "3639807": "رحمة أشرف محمد شلبية", "3639857": "بتول سليمان عبدالله عباس", "3639877": "حبيبه سعيد طه بكير", "3639897": "حبيبة أحمد محمد عيد", "3639907": "ملك هاني التهامي", "3639917": "حبيبه عبدالعظيم الشافعي عبدالعظيم", "3639927": "شادى محمد عبد الفتاح", "3639957": "نيره هانى محمد الجابرى", "3639977": "سامي حازم سامي عبد القادر", "3639987": "رنا أشرف عبد الرحمن مدين", "3639997": "جنى السيد متولي", "3640007": "سندس عابد السيد محمد", "3640027": "امنيه محمود السيد", "3640037": "حنين سامى العشماوي", "3640057": "زينب محمد سليمان عبد العال", "3640077": "أحمد محمود محمد علي متولي", "3640087": "مي ابراهيم عبد الخالق عبد القادر", "3640097": "سما محمد احمد الليثي", "3640107": "جني احمد محمد حمامه", "3640117": "هند حامد", "3640137": "أيه رضا إبراهيم مصطفى", "3640147": "مروه أشرف ابراهيم الجرواني", "3640157": "حبيبه عمر عبد الحليم محمد", "3640167": "هنا زكي محمد البلشي", "3640187": "حنين شريف حمد", "3640197": "ندي طه محمد العربي", "3640207": "فاطمه ربيع السيد عبد الرحمن", "3640217": "هند محمد السيد علي ابوالنجا", "3640227": "بسمله اشرف مليجي نوفل", "3640237": "سما خميس رمضان فحيل", "3640257": "إبراهيم عطا إبراهيم ربيعة", "3640267": "منار أحمد محفوظ", "3640277": "بسنت ايمن فتحي سعيد", "3640317": "كريم اكرم شوقي شريف", "3640437": "أشرقت إبراهيم أمين السبعاوي", "3640527": "احمد محمدي محمد عبد الهادي", "3640537": "مئاب ابراهيم رشاد عبدربه", "3640547": "حامد محمد حامد عبد المعطي", "3640577": "شهد السيد مصلحي شاهين", "3640587": "فاطمه احمد محمود رمضان", "3640627": "مريم محمد سعيد ابوالعلا", "3640647": "عبدالرحمن هيثم محمد نجيب", "3640707": "تقى محمد فتحي بسيوني", "3640747": "سما شريف عبدالمنعم رزق", "3640767": "ياسمينه صلاح محمد مصلحي", "3640777": "عبدالرحمن ايمن محمود القط", "3640827": "محمد شريف حرحش", "3640837": "منه حامد عبد الظاهر احمد", "3640847": "شهيرة أحمد سعيد شلبي", "3640857": "ايمان ابراهيم محمد الكومى", "3640867": "ريهام أحمد محمد الغريب", "3640877": "مصباح مرزوق مصباح السيد", "3640887": "نور الحسيني محمود الاشوح", "3640897": "محمود أحمد عبدالباسط عبدالرحمن", "3640927": "فرح محمد مصطفى شهاب", "3640947": "هاجر احمد صبحى", "3640967": "ملك طارق صلاح زكريا", "3640977": "منه عبدالمنعم غانم الاعصر", "3641007": "خالد محمد خالد بدر", "3641017": "السيد إسماعيل إسماعيل ابو العز", "3641027": "سلمي عبدالروؤف محمد ابوزبيده", "3641057": "ابراهيم العزب احمد مصطفي", "3641067": "نور شريف حسني علي", "3641077": "سجده هاني عبدالمجيد العناني", "3641087": "أسماء ربيع محمد الشيخ", "3641097": "جني متولي السيد الحفناوي", "3641107": "شروق السيد امين الملاح", "3641127": "نور اسامه عبدالعظيم بكر", "3641137": "جنى وائل سعيد نصار", "3641147": "يوسف صبحي عبد المجيد حسين", "3641187": "حبيبة بدر عبد الظاهر", "3641197": "حبيبة محمد شوقي حرحش", "3641207": "", "3641217": "", "3641227": "", "3641237": "", "3641257": "", "3641267": "", "3641297": "", "3641307": "", "3641317": "", "3641327": "", "3641337": "", "3641357": "", "3641367": "", "3641377": "", "3641387": "", "3641397": "", "3641407": "", "3641417": "", "3641427": "", "3640797": "", "3639567": "", "3638417": "", "3637717": "", "3636597": "", "3640377": "", "3638877": "", "3638967": "", "3641437": "", "3641447": "", "3641457": "", "3641467": "", "3641477": "", "3641487": "", "3641497": "", "3641507": "", "3641517": "", "3641527": "", "3641537": "", "3641547": "", "3641557": "", "3641567": "", "3641577": "", "3641587": "", "3641597": "", "3641607": "", "3641617": "", "3641627": ""};
+
+  const idInput   = document.getElementById('idInput');
+  const searchBtn = document.getElementById('searchBtn');
+  const ticket    = document.getElementById('ticket');
+  const emptyMsg  = document.getElementById('emptyMsg');
+  const stamp     = document.getElementById('stamp');
+  const ticketName= document.getElementById('ticketName');
+  const ticketCode= document.getElementById('ticketCode');
+  const footerCode= document.getElementById('footerCode');
+
+  let qr = null;
+
+  function runSearch(){
+    const code = idInput.value.trim();
+    ticket.classList.remove('show');
+    stamp.classList.remove('show');
+    emptyMsg.classList.remove('show');
+
+    if(!code) return;
+
+    if(Object.prototype.hasOwnProperty.call(STUDENTS, code)){
+      const name = STUDENTS[code];
+
+      ticketCode.textContent = '#' + code;
+      footerCode.textContent = code;
+
+      if(name){
+        ticketName.textContent = name;
+        ticketName.classList.remove('no-name');
+      }else{
+        ticketName.textContent = 'بدون اسم مسجل';
+        ticketName.classList.add('no-name');
+      }
+
+      document.getElementById('qrcode').innerHTML = '';
+      qr = new QRCode(document.getElementById('qrcode'), {
+        text: code,
+        width: 148,
+        height: 148,
+        colorDark: '#20180f',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      // reflow to restart animation
+      void ticket.offsetWidth;
+      ticket.classList.add('show');
+      requestAnimationFrame(() => stamp.classList.add('show'));
+    } else {
+      emptyMsg.classList.add('show');
+    }
+  }
+
+  searchBtn.addEventListener('click', runSearch);
+  idInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') runSearch(); });
+  idInput.addEventListener('input', () => {
+    idInput.value = idInput.value.replace(/[^0-9]/g, '');
+  });
+</script>
+</body>
+</html>
